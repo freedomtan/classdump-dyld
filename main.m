@@ -13,6 +13,8 @@
 #import <Foundation/Foundation.h>
 #import <objc/runtime.h>
 
+#import <TargetConditionals.h>
+
 static BOOL inDebug = NO;
 static BOOL isIOS11 = NO;
 
@@ -1508,7 +1510,11 @@ int main(int argc, char** argv, char** envp) {
           filename = "/System/Library/Caches/com.apple.dyld/dyld_shared_cache_armv7s";
         } else if ([[NSFileManager defaultManager]
                        fileExistsAtPath:@"/System/Library/dyld/dyld_shared_cache_arm64e"]) {
+#if TARGET_CPU_ARM64
           filename = "/System/Library/dyld/dyld_shared_cache_arm64e";
+#else
+          filename = "/System/Library/dyld/dyld_shared_cache_x86_64";
+#endif
         } else {
           filename = "/System/Library/Caches/com.apple.dyld/dyld_shared_cache_armv7";
         }

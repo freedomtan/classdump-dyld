@@ -412,6 +412,7 @@ NSMutableArray* generateForbiddenPathsArray(BOOL isRecursive) {
   [forbiddenPaths addObject:@"AppAnalytics"];
   [forbiddenPaths addObject:@"CoreKnowledge"];
 
+  // m1
   [forbiddenPaths addObject:@"/System/iOSSupport"];
   [forbiddenPaths addObject:@"UIKitMacHelper.framework"];
   [forbiddenPaths addObject:@"ContactsUIMacHelper.framework"];
@@ -424,6 +425,12 @@ NSMutableArray* generateForbiddenPathsArray(BOOL isRecursive) {
   [forbiddenPaths addObject:@"StoreKitMacHelper.framework"];
   [forbiddenPaths addObject:@"libcrypto.dylib"];
   [forbiddenPaths addObject:@"libssl.dylib"];
+
+#if TARGET_CPU_X86_64
+  // x86_64 big sur
+  [forbiddenPaths addObject:@"ActionKit.framework"];
+  [forbiddenPaths addObject:@"/System/Library/Extensions"];
+#endif
 
   return forbiddenPaths;
 }
