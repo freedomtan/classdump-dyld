@@ -52,8 +52,8 @@ convenient.
                                                                 stringWithFormat:
                                                                     @"{union={%@}ficificifloc}",
                                                                     textFound]];  // add an
-                                                                                  // impossible match
-                                                                                  // of types
+                                                                                  // impossible
+                                                                                  // match of types
                           *stop = YES;
                         }
                       }];
@@ -201,7 +201,7 @@ NSString* propertyLineGenerator(NSString* attributes, NSString* name) {
   [attrArr removeObjectAtIndex:0];
   NSMutableArray* newPropsArray = [NSMutableArray array];
   NSString* synthesize = @"";
-  for (NSString* attr in attrArr) {
+  for (NSString __strong* attr in attrArr) {
     NSString* vToClear = nil;
 
     if ([attr rangeOfString:@"V_"].location == 0) {
@@ -313,7 +313,6 @@ static NSMutableArray* propertiesArrayFromString(NSString* propertiesString) {
     [typesAndNames setObject:propertyNameFound forKey:@"name"];
     [typesAndNamesArray addObject:typesAndNames];
   }
-  [propertiesExploded release];
   return typesAndNamesArray;
 }
 
@@ -328,16 +327,16 @@ NSString* buildProtocolFile(Protocol* currentProtocol) {
   NSMutableArray* classesInProtocol = [[NSMutableArray alloc] init];
 
   unsigned int outCount = 0;
-  Protocol** protList = protocol_copyProtocolList(currentProtocol, &outCount);
+  Protocol* __unsafe_unretained _Nonnull* _Nullable protList =
+      protocol_copyProtocolList(currentProtocol, &outCount);
 
   if (outCount > 0) {
     [protocolsMethodsString appendString:@" <"];
   }
   for (int p = 0; p < outCount; p++) {
-    NSString* end = p == outCount - 1 ? [@"" retain] : [@"," retain];
+    NSString* end = p == outCount - 1 ? @"" : @",";
     [protocolsMethodsString
         appendString:[NSString stringWithFormat:@"%s%@", protocol_getName(protList[p]), end]];
-    [end release];
   }
   if (outCount > 0) {
     [protocolsMethodsString appendString:@">"];
@@ -381,7 +380,6 @@ NSString* buildProtocolFile(Protocol* currentProtocol) {
     if ([protPropertiesString rangeOfString:newString].location == NSNotFound) {
       [protPropertiesString appendString:newString];
     }
-    [newString release];
   }
 
   [protocolsMethodsString appendString:protPropertiesString];
@@ -450,10 +448,9 @@ NSString* buildProtocolFile(Protocol* currentProtocol) {
 
   // FIX EQUAL TYPES OF PROPERTIES AND METHODS
   NSArray* propertiesArray = propertiesArrayFromString(protPropertiesString);
-  [protPropertiesString release];
   NSArray* lines = [protocolsMethodsString componentsSeparatedByString:@"\n"];
   NSMutableString* finalString = [[NSMutableString alloc] init];
-  for (NSString* line in lines) {
+  for (NSString* __strong line in lines) {
     if (line.length > 0 &&
         ([line rangeOfString:@"-"].location == 0 || [line rangeOfString:@"+"].location == 0)) {
       NSString* methodInLine = [line substringFromIndex:[line rangeOfString:@")"].location + 1];
@@ -500,12 +497,8 @@ NSString* buildProtocolFile(Protocol* currentProtocol) {
     }
     [classesFoundToAdd appendString:@"\n\n"];
     [classesFoundToAdd appendString:finalString];
-    [finalString release];
     finalString = [classesFoundToAdd mutableCopy];
-    [classesFoundToAdd release];
   }
-  [classesInProtocol release];
-  [protocolsMethodsString release];
   [finalString appendString:@"@end\n\n"];
   return finalString;
 }
@@ -1524,7 +1517,7 @@ NSString* generateMethodLines(Class someclass, BOOL isInstanceMethod,
     for (NSDictionary* dict in propertiesArray) {
       NSString* propertyName = [dict objectForKey:@"name"];
       if ([propertyName isEqual:SelectorNameNS]) {
-        returnTypeSameAsProperty = [[dict objectForKey:@"type"] retain];
+        returnTypeSameAsProperty = [dict objectForKey:@"type"];
         break;
       }
     }
@@ -1538,10 +1531,9 @@ NSString* generateMethodLines(Class someclass, BOOL isInstanceMethod,
                                    commonTypes([NSString stringWithCString:returnType
                                                                   encoding:NSUTF8StringEncoding],
                                                nil, NO)];
-    [returnTypeSameAsProperty release];
     free(returnType);
 
-    returnString = [[[returnString autorelease] stringByAppendingString:startTypes] retain];
+    returnString = [returnString stringByAppendingString:startTypes];
 
     if (methodArgs > 2) {
       NSArray* selValuesArray = [SelectorNameNS componentsSeparatedByString:@":"];
@@ -1556,39 +1548,37 @@ NSString* generateMethodLines(Class someclass, BOOL isInstanceMethod,
                 [firstCapitalized stringByAppendingString:[propertyName substringFromIndex:1]];
             if ([[selValuesArray objectAtIndex:0]
                     isEqual:[NSString stringWithFormat:@"set%@", capitalizedFirst]]) {
-              methodTypeSameAsProperty = [[dict objectForKey:@"type"] retain];
+              methodTypeSameAsProperty = [dict objectForKey:@"type"];
               break;
             }
           }
         }
         if (methodTypeSameAsProperty) {
-          returnString = [[[returnString autorelease]
+          returnString = [returnString
               stringByAppendingString:[NSString
                                           stringWithFormat:@"%@:(%@)arg%d ",
                                                            [selValuesArray objectAtIndex:i - 2],
-                                                           methodTypeSameAsProperty, i - 1]]
-              retain];
+                                                           methodTypeSameAsProperty, i - 1]];
         } else {
-          returnString = [[[returnString autorelease]
+          returnString = [returnString
               stringByAppendingString:
                   [NSString stringWithFormat:@"%@:(%@)arg%d ", [selValuesArray objectAtIndex:i - 2],
                                              commonTypes(
                                                  [NSString stringWithCString:methodType
                                                                     encoding:NSUTF8StringEncoding],
                                                  nil, NO),
-                                             i - 1]] retain];
+                                             i - 1]];
         }
-        [methodTypeSameAsProperty release];
         free(methodType);
       }
     }
 
     else {
-      returnString = [[[returnString autorelease]
-          stringByAppendingString:[NSString stringWithFormat:@"%@", SelectorNameNS]] retain];
+      returnString =
+          [returnString stringByAppendingString:[NSString stringWithFormat:@"%@", SelectorNameNS]];
     }
 
-    returnString = [[[returnString autorelease] stringByAppendingString:@";"] retain];
+    returnString = [returnString stringByAppendingString:@";"];
   }
 
   free(methodsArray);

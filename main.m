@@ -132,7 +132,6 @@ static void list_dir(const char* dir_name, BOOL writeToDisk, NSString* outputDir
     d_name = entry->d_name;
 
     if (strcmp(d_name, ".") && strcmp(d_name, "..")) {
-      NSAutoreleasePool* p = [[NSAutoreleasePool alloc] init];
       if (!dir_name) {
         printf("\n stringWithCString dir_name empty \n");
       }
@@ -175,8 +174,6 @@ static void list_dir(const char* dir_name, BOOL writeToDisk, NSString* outputDir
                      YES, simpleHeader, skipAlreadyFound, skipApplications, 0);
         }
       }
-
-      [p drain];
     }
 
     if (entry->d_type & DT_DIR) {
@@ -238,14 +235,9 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
   for (NSString* forbiddenPath in forbiddenPaths) {
     if ([imageAsNSString rangeOfString:forbiddenPath].location != NSNotFound) {
       NSLog(@"Image %@ cannot be parsed due to known crashing issues.", imageAsNSString);
-      [imageAsNSString release];
       return 5;
     }
   }
-
-  [imageAsNSString release];
-
-  NSAutoreleasePool* xd = [[NSAutoreleasePool alloc] init];
 
   if (!image) {
     printf("\n stringWithCString image empty \n");
@@ -259,16 +251,11 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
        (skipApplications &&
         [[NSString stringWithCString:image encoding:NSUTF8StringEncoding] rangeOfString:@"/var"]
                 .location == 0))) {
-    [xd drain];
     return 4;
   }
-  [xd drain];
-
-  NSAutoreleasePool* xdd = [[NSAutoreleasePool alloc] init];
 
   if ([allImagesProcessed containsObject:[NSString stringWithCString:image
                                                             encoding:NSUTF8StringEncoding]]) {
-    [xdd drain];
     return 5;
   }
 
@@ -284,10 +271,8 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
       stringByAppendingString:[NSString stringWithFormat:@"/%@", imageEnd]];
 
   if ([allImagesProcessed containsObject:containedImage]) {
-    [xdd drain];
     return 5;
   }
-  [xdd drain];
 
   // check if image is executable
   dlopen_preflight(image);
@@ -311,7 +296,6 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
           (dlopenError && !strstr(dlopenError, "no matching architecture in universal wrapper") &&
            !strstr(dlopenError, "out of address space") &&
            !strstr(dlopenError, "mach-o, but wrong architecture"))) {
-        NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
         NSString* imageString = [[NSString alloc] initWithCString:image
                                                          encoding:NSUTF8StringEncoding];
         NSString* lastComponent = [imageString lastPathComponent];
@@ -326,8 +310,6 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
           return 3;
         }
         NSBundle* loadedBundle = [NSBundle bundleWithPath:imageString];
-        [imageString release];
-        [pool drain];
         char* exec = (char*)[[loadedBundle executablePath] UTF8String];
         image = (char*)exec;
         if (image) {
@@ -485,8 +467,6 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
   int actuallyProcesssedCount = 0;
 
   for (unsigned i = 0; i < count; i++) {
-    NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
-
     classesInClass = nil;
     classesInClass = [NSMutableArray array];
     NSMutableArray* inlineProtocols = [NSMutableArray array];
@@ -502,21 +482,16 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
                                                               encoding:NSUTF8StringEncoding];
 
     if ([forbiddenClasses indexOfObject:classNameNSToRelease] != NSNotFound) {
-      [classNameNSToRelease release];
       continue;
     }
     if ([classNameNSToRelease rangeOfString:@"_INP"].location == 0 ||
         [classNameNSToRelease rangeOfString:@"ASV"].location == 0) {
-      [classNameNSToRelease release];
       continue;
     }
 
     if (onlyOneClass && ![classNameNSToRelease isEqual:onlyOneClass]) {
-      [classNameNSToRelease release];
       continue;
     }
-
-    [classNameNSToRelease release];
 
     actuallyProcesssedCount++;
 
@@ -561,7 +536,8 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
             : @" : _UKNOWN_SUPERCLASS_";
 
     unsigned int protocolCount;
-    Protocol** protocolArray = class_copyProtocolList(currentClass, &protocolCount);
+    Protocol* __unsafe_unretained _Nonnull* _Nullable protocolArray =
+        class_copyProtocolList(currentClass, &protocolCount);
     NSString* inlineProtocolsString = @"";
     for (unsigned t = 0; t < protocolCount; t++) {
       if (t == 0) {
@@ -573,23 +549,20 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
         printf("\n stringWithCString protocolName empty \n");
       }
 
-      NSString* addedProtocol = [[NSString stringWithCString:protocolName
-                                                    encoding:NSUTF8StringEncoding] retain];
+      NSString* addedProtocol = [NSString stringWithCString:protocolName
+                                                   encoding:NSUTF8StringEncoding];
       if (t < protocolCount - 1) {
-        addedProtocol = [[[addedProtocol autorelease] stringByAppendingString:@", "] retain];
+        addedProtocol = [addedProtocol stringByAppendingString:@", "];
       }
-      inlineProtocolsString =
-          [[[inlineProtocolsString autorelease] stringByAppendingString:addedProtocol] retain];
+      inlineProtocolsString = [inlineProtocolsString stringByAppendingString:addedProtocol];
       if (t == protocolCount - 1) {
-        inlineProtocolsString =
-            [[[inlineProtocolsString autorelease] stringByAppendingString:@">"] retain];
+        inlineProtocolsString = [inlineProtocolsString stringByAppendingString:@">"];
       }
     }
 
     if (writeToDisk || (!writeToDisk && !hasWrittenCopyright)) {
       NSString* copyrightString = copyrightMessage(image);
       [dumpString appendString:copyrightString];
-      [copyrightString release];
       hasWrittenCopyright = YES;
     }
 
@@ -674,7 +647,6 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
         if (writeToDisk) {
           NSString* copyrightString = copyrightMessage(image);
           protocolHeader = [copyrightString stringByAppendingString:protocolHeader];
-          [copyrightString release];
 
           [[NSFileManager defaultManager] createDirectoryAtPath:writeDir
                                     withIntermediateDirectories:YES
@@ -791,7 +763,6 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
       }
       int interfaceLocation = [dumpString rangeOfString:@"@interface"].location;
       [dumpString insertString:inlineProtocolsString atIndex:interfaceLocation];
-      [inlineProtocolsString release];
     }
 
     // Get Properties
@@ -813,10 +784,8 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
           [NSString stringWithCString:attrs encoding:NSUTF8StringEncoding],
           [NSString stringWithCString:propname encoding:NSUTF8StringEncoding]);
       if ([propertiesString rangeOfString:newString].location == NSNotFound) {
-        propertiesString =
-            [[[propertiesString autorelease] stringByAppendingString:newString] retain];
+        propertiesString = [propertiesString stringByAppendingString:newString];
       }
-      [[newString autorelease] retain];
     }
     free(propertyList);
 
@@ -825,7 +794,7 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
     NSMutableArray* synthesized =
         [[propertiesString componentsSeparatedByString:@"\n"] mutableCopy];
     int longestLocation = 0;
-    for (NSString* string in synthesized) {
+    for (NSString* __strong string in synthesized) {
       string = [string stringByReplacingOccurrencesOfString:@"\t" withString:@""];
       string = [string stringByTrimmingCharactersInSet:[NSCharacterSet whitespaceCharacterSet]];
       int location = [string rangeOfString:@";"].location;
@@ -838,7 +807,7 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
     }
 
     NSMutableArray* newStrings = [NSMutableArray array];
-    for (NSString* string in synthesized) {
+    for (NSString* __strong string in synthesized) {
       int synthesizeLocation = [string rangeOfString:@"//@synth"].location;
       if ([string rangeOfString:@"//@synth"].location == NSNotFound) {
         [newStrings addObject:string];
@@ -861,11 +830,10 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
 
     // Gather All Strings
     [dumpString appendString:propertiesString];
-    [dumpString
-        appendString:[generateMethodLines(object_getClass(currentClass), NO, nil) autorelease]];
-    [dumpString appendString:[generateMethodLines(currentClass, YES,
-                                                  propertiesArrayFromString(propertiesString))
-                                 autorelease]];
+    [dumpString appendString:generateMethodLines(object_getClass(currentClass), NO, nil)];
+
+    [dumpString appendString:generateMethodLines(currentClass, YES,
+                                                 propertiesArrayFromString(propertiesString))];
     [dumpString appendString:@"\n@end\n\n"];
 
     if (shouldImportStructs && writeToDisk) {
@@ -900,7 +868,6 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
         }
         [classesFoundToAdd appendString:@"\n\n"];
         [dumpString insertString:classesFoundToAdd atIndex:firstInteface];
-        [classesFoundToAdd release];
       }
     }
 
@@ -941,11 +908,7 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
       [classesToImport appendString:importStringFrmt];
     }
 
-    objc_destructInstance(currentClass);
-
-    [dumpString release];
     dumpString = [[NSMutableString alloc] init];
-    [pool drain];
   }
   // END OF PER-CLASS LOOP
 
@@ -967,37 +930,30 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
       printf("  Failed to save header list to directory \"%s\"\n", [writeDir UTF8String]);
     }
   }
-  [classesToImport release];
 
   CDLog(@"Finished class loop for %s", image);
 
   // Compose FrameworkName-Structs.h file
 
-  NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
-
   if ([allStructsFound count] > 0) {
     NSString* structsString = @"";
     if (writeToDisk) {
       NSString* copyrightString = copyrightMessage(image);
-      structsString =
-          [[[structsString autorelease] stringByAppendingString:copyrightString] retain];
-      [copyrightString release];
+      structsString = [structsString stringByAppendingString:copyrightString];
     }
     NSError* writeError;
     if ([classesInStructs count] > 0) {
-      structsString = [[[structsString autorelease] stringByAppendingString:@"\n@class "] retain];
+      structsString = [structsString stringByAppendingString:@"\n@class "];
       for (NSString* string in classesInStructs) {
-        structsString = [[[structsString autorelease]
-            stringByAppendingString:[NSString stringWithFormat:@"%@, ", string]] retain];
+        structsString =
+            [structsString stringByAppendingString:[NSString stringWithFormat:@"%@, ", string]];
       }
-      structsString =
-          [[[structsString autorelease] substringToIndex:structsString.length - 2] retain];
-      structsString = [[[structsString autorelease] stringByAppendingString:@";\n\n"] retain];
+      structsString = [structsString substringToIndex:structsString.length - 2];
+      structsString = [structsString stringByAppendingString:@";\n\n"];
     }
 
     for (NSDictionary* dict in allStructsFound) {
-      structsString = [[[structsString autorelease]
-          stringByAppendingString:[dict objectForKey:@"representation"]] retain];
+      structsString = [structsString stringByAppendingString:[dict objectForKey:@"representation"]];
     }
     if (writeToDisk) {
       [[NSFileManager defaultManager] createDirectoryAtPath:writeDir
@@ -1019,8 +975,6 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
       printf("\n%s\n", [structsString UTF8String]);
     }
   }
-
-  [pool drain];
 
   // Compose FrameworkName-Symbols.h file (more like nm command's output not an actual header
   // anyway)
@@ -1108,7 +1062,6 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
         sym = symbase;
 
         symbolsString = [[NSMutableString alloc] init];
-        NSAutoreleasePool* pp = [[NSAutoreleasePool alloc] init];
 
         CDLog(@"In Symbols -> Iteraring symtab");
         for (uint32_t index = 0; index < symtab->nsyms; index += 1, sym += 1) {
@@ -1125,7 +1078,6 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
                     appendString:[copyrightString
                                      stringByReplacingOccurrencesOfString:@"This header"
                                                                withString:@"This output"]];
-                [copyrightString release];
                 if (!str) {
                   printf("\n stringWithCString str empty \n");
                 }
@@ -1143,7 +1095,6 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
             free(str);
           }
         }
-        [pp drain];
       }
 
       else {
@@ -1200,7 +1151,6 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
         sym = symbase;
 
         symbolsString = [[NSMutableString alloc] init];
-        NSAutoreleasePool* pp = [[NSAutoreleasePool alloc] init];
 
         CDLog(@"In Symbols -> Iteraring symtab");
         for (uint32_t index = 0; index < symtab->nsyms; index += 1, sym += 1) {
@@ -1217,7 +1167,6 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
                     appendString:[copyrightString
                                      stringByReplacingOccurrencesOfString:@"This header"
                                                                withString:@"This output"]];
-                [copyrightString release];
                 if (!str) {
                   printf("\n stringWithCString str empty \n");
                 }
@@ -1235,7 +1184,6 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
             free(str);
           }
         }
-        [pp drain];
       }
 
       NSError* error2;
@@ -1260,7 +1208,6 @@ int parseImage(char* image, BOOL writeToDisk, NSString* outputDir, BOOL getSymbo
           printf("\n%s\n", [symbolsString UTF8String]);
         }
       }
-      [symbolsString release];
     }
   }
 
@@ -1338,7 +1285,7 @@ int main(int argc, char** argv, char** envp) {
           exit(0);
         }
 
-        onlyOneClass = [[arguments objectAtIndex:argIndex + 1] retain];
+        onlyOneClass = [arguments objectAtIndex:argIndex + 1];
 
         if ([onlyOneClass rangeOfString:@"-"].location == 0) {
           printHelp();
@@ -1560,7 +1507,6 @@ int main(int argc, char** argv, char** envp) {
         CDLog(@"Current Image %@", imageToNSString);
         parseImage((char*)[imageToNSString UTF8String], writeToDisk, outputDir, getSymbols, YES,
                    YES, simpleHeader, skipAlreadyFound, skipApplications, (int)prct);
-        [imageToNSString release];
       }
       munmap(_cacheData, filesize);
       close(fd);
@@ -1584,7 +1530,6 @@ int main(int argc, char** argv, char** envp) {
       [fileman changeCurrentDirectoryPath:currentDir];
       [fileman changeCurrentDirectoryPath:sourceDir];
       sourceDir = [fileman currentDirectoryPath];
-      [fileman release];
       const char* dir_name = [sourceDir UTF8String];
       list_dir(dir_name, writeToDisk, outputDir, getSymbols, recursive, simpleHeader,
                skipAlreadyFound, skipApplications);
@@ -1622,7 +1567,6 @@ int main(int argc, char** argv, char** envp) {
         }
         RESULT = parseImage(image, writeToDisk, outputDir, getSymbols, NO, buildOriginalDirs,
                             simpleHeader, NO, skipApplications, 0);
-        [fileman release];
       }
     }
 

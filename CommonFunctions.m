@@ -247,7 +247,6 @@ NSMutableArray* generateForbiddenClassesArray(BOOL isRecursive) {
 }
 
 static NSString* copyrightMessage(char* image) {
-  NSAutoreleasePool* pool = [[NSAutoreleasePool alloc] init];
   NSString* version = [NSProcessInfo processInfo].operatingSystemVersionString;
   NSLocale* loc = [NSLocale localeWithLocaleIdentifier:@"en-us"];
   NSString* date = [NSDate.date descriptionWithLocale:loc];
@@ -263,9 +262,8 @@ static NSString* copyrightMessage(char* image) {
 * classdump-dyld is licensed under "
                                                        @"GPLv3, Copyright \u00A9 2013-2016 by "
                                                        @"Elias Limneos.\n\
-*/\n\n", date, version, image];
-
-  [pool drain];
+*/\n\n",
+                                                       date, version, image];
 
   return message;
 }
