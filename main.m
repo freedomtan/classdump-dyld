@@ -1541,6 +1541,7 @@ int main(int argc, char** argv, char** envp) {
             strstr(imageInCache, "/System/Library/Frameworks/CoreGraphics.framework/Resources/") ||
             strstr(imageInCache, "JavaScriptCore.framework") ||
             strstr(imageInCache, "GameKitServices.framework") ||
+            strstr(imageInCache, "MPSImage.framework") ||
             strstr(imageInCache, "VectorKit")) {
           continue;
         }
